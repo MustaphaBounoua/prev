@@ -62,6 +62,7 @@ def sarimax(data, testdate, horizon, nbjourtest, seasonal, seasonality,useexog):
     if useexog:
         arima_model = auto_arima(train, exogenous=train_exogene, seasonality=False, error_action='ignore',
                              trace=1, stepwise=True)
+
     else:
         arima_model = auto_arima(train, seasonality=False,
                                  error_action='ignore',
@@ -86,6 +87,15 @@ def sarimax(data, testdate, horizon, nbjourtest, seasonal, seasonality,useexog):
     plt.legend(['observation', 'prevision'])
     plt.title('La prevision sur un horizon de  :' + str(horizon))
     plt.show()
+
+
+# In[]
+
+def sarima_prim(data,p,d,q,P,D,Q,s):
+    import statsmodels.api as sm
+    model = sm.tsa.statespace.SARIMAX(data, order = (p, d, q),seasonal_order = (P, D, Q, s)).fit(disp=-1)
+    return model
+
 
 
 # In[]
@@ -119,6 +129,16 @@ sarimax(daily, '1/7/2018', 15, 180, False, 180,False)
 
 sarimax(daily, '28/1/2018', 4, 20, False, 30,True)
 
+
+# In[]:
+
+
+
+
+
+
+
+
 # In[]:
 import plotly.plotly as py
 import plotly.graph_objs as go
@@ -145,4 +165,122 @@ print('moyenne en vacance :' + str (s/i))
 print('moyenne sans vacance :' + str (z/k))
 
 
+# In[] test
+def tsplot(y, lags=None, figsize=(12, 7), style='bmh'):
+    import statsmodels.api as sm
+    import statsmodels.tsa.api as smt
+    from matplotlib import pyplot as plt
+    """
+        Plot time series, its ACF and PACF, calculate Dickey–Fuller test
+        y - timeseries
+        lags - how many lags to include in ACF, PACF calculation
+    """
+    if not isinstance(y, pd.Series):
+        y = pd.Series(y)
 
+    with plt.style.context(style):
+        fig = plt.figure(figsize=figsize)
+        layout = (2, 2)
+        ts_ax = plt.subplot2grid(layout, (0, 0), colspan=2)
+        acf_ax = plt.subplot2grid(layout, (1, 0))
+        pacf_ax = plt.subplot2grid(layout, (1, 1))
+
+        y.plot(ax=ts_ax)
+        p_value = sm.tsa.stattools.adfuller(y)[1]
+        ts_ax.set_title('Time Series Analysis Plots\n Dickey-Fuller: p={0:.5f}'.format(p_value))
+        smt.graphics.plot_acf(y, lags=lags, ax=acf_ax)
+        smt.graphics.plot_pacf(y, lags=lags, ax=pacf_ax)
+        plt.tight_layout()
+        plt.show()
+
+
+# In[] test
+model=sarima_prim(daily['nb'],3,0,2,0,1,1,7)
+# In[] test
+tsplot(model.resid,20)
+
+
+# In[] test
+def testarima(data, testdate, horizon, nbjourtest, p,d,q,P,D,Q,s):
+    from datetime import timedelta
+    from pandas import datetime
+    import matplotlib.pyplot as plt
+    print(str(nbjourtest))
+    print(str(horizon))
+    test_date_time = datetime.strptime(testdate, '%d/%m/%Y')
+    end_test = test_date_time + timedelta(days=horizon - 1)
+    end_train = test_date_time - timedelta(1)
+    start_train = test_date_time - timedelta(days=nbjourtest)
+    train = data[start_train:end_train]
+    test = data[test_date_time:end_test]
+    arima_model = sarima(train,p,d,q,P,D,Q,s)
+    prevision = arima_model.predict(horizon)
+    precision = mean_absolute_percentage_error(test, prevision)
+    print(arima_model.summary())
+    print('-----------------------------------------------------------------------------')
+    print('-------- Mape : --------' + str(precision) + '--------------------------------------')
+    plt.plot(test.index, test)
+    print('-------- test : --------' + str(len(test)))
+    print('-------- horizon : --------' + str(horizon))
+    print('-------- prevision : --------' + str(len(prevision)))
+    plt.plot(np.arange(358), prevision)
+    plt.legend(['observation', 'prevision'])
+    plt.title('La prevision sur un horizon de  :' + str(horizon))
+    plt.show()
+
+
+# In[
+def optimizeSARIMA(data,parameters_list, d, D, s):
+    import statsmodels.api as sm
+
+    results = []
+    best_aic = float("inf")
+    i=0
+    for param in parameters_list:
+        print("----------------------------------------------------")
+        print("--"+ str(i + 1)+"/"+str(len(parameters_list)))
+        print("ARIMA "+ "("+str(param[0])+","+str(d)+","+str(param[1])+") ("+str(param[2])+","+str(D)+","+str(param[3])+")"+str(s))
+        try:
+            model = sm.tsa.statespace.SARIMAX(data, order=(param[0], d, param[1]),seasonal_order=(param[2], D, param[3], s)).fit(disp=-1)
+            print("fitting")
+            print("----------------------------------------------------")
+        except :
+            print("Infini")
+            print("----------------------------------------------------")
+            continue
+        aic = model.aic
+        # saving best model, AIC and parameters
+        if aic < best_aic:
+            best_model = model
+            best_aic = aic
+            best_param = param
+        results.append([param, model.aic])
+
+    result_table = pd.DataFrame(results)
+    result_table.columns = ['parameters', 'aic']
+    # sorting in ascending order, the lower AIC is - the better
+    result_table = result_table.sort_values(by='aic', ascending=True).reset_index(drop=True)
+    return result_table
+
+
+
+    # In[
+ps = range(0, 4)
+d = 0
+qs = range(0, 4)
+Ps = range(0, 3)
+D = 1
+Qs = range(0, 3)
+
+from itertools import product
+parameters = product(ps, qs, Ps, Qs)
+
+parameters_list = list(parameters)
+
+aa=daily['1/7/2017':'30/6/2018']
+
+optimizeSARIMA(aa,parameters_list,d,D,7)
+
+# In[
+aa=daily['1/7/2017':'31/12/2018']
+testarima(aa,'1/7/2018', 100,365,2,0,2,0,1,1,7)

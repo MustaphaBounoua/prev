@@ -123,7 +123,7 @@ def getPerDayMonth(x, y):
 
 
 def getMeanByWeek(x, y):
-    data_week = hourly[start:end]
+    data_week = hourly[x:y]
     wed = data_week.groupby([data_week.index.weekday_name, data_week.index.hour])['nb'].mean()
     lines = []
     for idate in wed.index.get_level_values(level=0).unique():
@@ -206,10 +206,9 @@ def arima(data, testdate, horizon, nbjourtest, seasonal, seasonality):
     print('-----------------------------------------------------------------------------')
     print('--------Mae : --------' + str(precision) + '--------------------------------')
     x = hourly[start_train:end_test]
-
+    return prevision
     plt.plot(x.index, x)
     plt.plot(test.index, prevision)
-
     plt.legend(['observation', 'prevision'])
     plt.title('La prevision sur un horizon de  :' + str(horizon))
     plt.show()
@@ -229,9 +228,8 @@ def pacf(y,lag):
     smt.graphics.plot_pacf(y, lags=lag)
     plt.show()
 
+
 # In[] test
-
-
 def seasonal_diff(y,lag):
     import statsmodels.tsa.api as smt
     y_diff = y - y.shift(24)
@@ -306,7 +304,7 @@ def sarima(data,p,d,q,P,D,Q,s):
 
 
 # In[
-h = hourly['1/1/2018':'31/12/2018']
-sarima(h, 3, 0, 3, 2, 1, 2, 24)
+h = hourly['1/1/2018':'31/1/2018']
+sarima(h, 0, 0, 3, 0, 1, 2, 24)
 
 
